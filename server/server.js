@@ -2,7 +2,7 @@ const express = require('express');
 const app = express();
 const server = require('http').createServer(app);
 const io = require('socket.io')(server, {
-    cors: { origin: "*" } // Har qanday ulanishga ruxsat (Render uchun)
+    cors: { origin: "*" } 
 });
 const path = require('path');
 
@@ -15,20 +15,17 @@ app.get('/', (req, res) => {
 
 let rooms = {};
 
-// Mavjud xonalar ro'yxatini hamma o'yinchilarga yuborish
 function broadcastRoomList() {
     const roomList = Object.keys(rooms).map(id => ({
         id: id,
         playerCount: Object.keys(rooms[id].players).length,
         isStarted: rooms[id].gameStarted
     }));
-    io.emit('roomListUpdate', roomList); // Hamma mijozlarga tarqatish
+    io.emit('roomListUpdate', roomList);
 }
 
 io.on('connection', (socket) => {
     console.log(`Ulandi: ${socket.id}`);
-    
-    // Kirgan zahoti ro'yxatni yuboramiz
     broadcastRoomList();
 
     socket.on('joinRoom', (data) => {
@@ -36,7 +33,7 @@ io.on('connection', (socket) => {
         if (!roomID || !username) return;
 
         socket.join(roomID);
-        socket.currentRoom = roomID; // O'yinchi qaysi xonadaligini eslab qolamiz
+        socket.currentRoom = roomID;
 
         if (!rooms[roomID]) {
             rooms[roomID] = { players: {}, gameStarted: false, laps: 3 };
@@ -54,10 +51,8 @@ io.on('connection', (socket) => {
             laps: 0
         };
 
-        console.log(`Xonaga qo'shildi: ${username} -> ${roomID}`);
-        
         io.to(roomID).emit('roomUpdate', { players: rooms[roomID].players });
-        broadcastRoomList(); // Ro'yxatni yangilaymiz (chunki odam qo'shildi)
+        broadcastRoomList();
     });
 
     socket.on('toggleReady', (roomID) => {
@@ -71,11 +66,42 @@ io.on('connection', (socket) => {
         const { roomID, laps } = data;
         if (rooms[roomID] && rooms[roomID].players[socket.id]?.isAdmin) {
             rooms[roomID].gameStarted = true;
-            rooms[roomID].laps = laps || 3;
-            io.to(roomID).emit('startGame', { laps: rooms[roomID].laps, players: rooms[roomID].players });
-            broadcastRoomList(); // Ro'yxatda "O'yin ketmoqda" deb chiqishi uchun
+            // Kelayotgan laps qiymatini aniq raqamga o'tkazamiz
+            rooms[roomID].laps = parseInt(laps) || 3;
+            
+            // Barcha o'yinchilarga laps sonini yuboramiz
+            io.to(roomID).emit('startGame', { 
+                laps: rooms[roomID].laps, 
+                players: rooms[roomID].players 
+            });
+            broadcastRoomList();
         }
     });
+
+    // --- MANA SHU QISMI YO'Q EDI (TUGASH LOGIKASI) ---
+    socket.on('lapCompleted', (data) => {
+        const { roomID, laps } = data;
+        const room = rooms[roomID];
+        
+        if (room && room.players[socket.id]) {
+            const player = room.players[socket.id];
+            player.laps = laps; // O'yinchining hozirgi aylanishini yangilaymiz
+
+            // Agar o'yinchi belgilangan laps soniga yetgan bo'lsa
+            if (player.laps >= room.laps) {
+                io.to(roomID).emit('gameFinished', { winner: player.name });
+
+                // Xonani reset qilish (keyingi o'yin uchun)
+                room.gameStarted = false;
+                Object.values(room.players).forEach(p => {
+                    p.ready = false;
+                    p.laps = 0;
+                });
+                broadcastRoomList();
+            }
+        }
+    });
+    // -----------------------------------------------
 
     socket.on('playerUpdate', (data) => {
         if (rooms[data.roomID]?.players[socket.id]) {

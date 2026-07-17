@@ -2,25 +2,38 @@
 <html>
 <head>
     <title>Pro Racing Multiplayer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <style>
-        body { margin: 0; background: #1a1a1a; color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
+        body { margin: 0; background: #1a1a1a; color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; touch-action: none; }
         .screen { position: absolute; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; flex-direction: column; background: rgba(0,0,0,0.9); z-index: 100; }
         .hidden { display: none !important; }
-        .box { background: #222; padding: 30px; border: 2px solid cyan; border-radius: 15px; text-align: center; }
-        #lobby-ui { display: flex; width: 850px; height: 450px; gap: 20px; }
-        #player-list { width: 300px; border-right: 1px solid #444; padding: 10px; display: flex; flex-direction: column; }
-        #chat-ui { flex-grow: 1; padding: 10px; display: flex; flex-direction: column; }
-        #messages { flex-grow: 1; background: #000; overflow-y: auto; padding: 10px; margin-bottom: 10px; border-radius: 5px; text-align: left; }
-        .chat-controls { display: flex; gap: 5px; }
-        #chat-input { flex-grow: 1; padding: 10px; border-radius: 5px; border: none; background: #333; color: white; }
-        #send-btn { padding: 10px 15px; background: cyan; border: none; border-radius: 5px; cursor: pointer; color: black; font-weight: bold; }
-        input[type="text"], input[type="number"] { padding: 10px; margin: 5px; border-radius: 5px; border: none; }
-        button { padding: 10px 20px; background: cyan; border: none; cursor: pointer; font-weight: bold; border-radius: 5px; margin: 5px; }
+        .box { background: #222; padding: 20px; border: 2px solid cyan; border-radius: 15px; text-align: center; width: 90%; max-width: 400px; }
         
+        /* Qurilma tanlash tugmalari */
+        .device-select { display: flex; gap: 10px; margin: 15px 0; justify-content: center; }
+        .device-btn { flex: 1; padding: 15px; border: 1px solid cyan; background: transparent; color: white; cursor: pointer; border-radius: 8px; transition: 0.3s; }
+        .device-btn.active { background: cyan; color: black; font-weight: bold; }
+
+        /* Lobby UI - Telefon uchun moslashuvchan */
+        #lobby-ui { display: flex; width: 95%; max-width: 850px; height: 80vh; gap: 10px; flex-direction: row; }
+        @media (max-width: 600px) { #lobby-ui { flex-direction: column; overflow-y: auto; } #player-list { width: 100% !important; border-right: none !important; border-bottom: 1px solid #444; } }
+
+        #player-list { width: 250px; border-right: 1px solid #444; padding: 10px; display: flex; flex-direction: column; }
+        #chat-ui { flex-grow: 1; padding: 10px; display: flex; flex-direction: column; min-height: 200px; }
+        #messages { flex-grow: 1; background: #000; overflow-y: auto; padding: 10px; margin-bottom: 10px; border-radius: 5px; text-align: left; font-size: 14px; }
+        
+        button { padding: 12px 20px; background: cyan; border: none; cursor: pointer; font-weight: bold; border-radius: 5px; margin: 5px; }
+        input[type="text"], input[type="number"] { padding: 12px; margin: 5px; border-radius: 5px; border: none; width: 80%; }
+
+        /* MOBIL BOSHQARUV TUGMALARI (Faqat telefonda chiqadi) */
+        #mobile-controls { position: absolute; bottom: 20px; width: 100%; display: flex; justify-content: space-between; padding: 0 20px; box-sizing: border-box; pointer-events: none; z-index: 50; }
+        .m-btn { width: 70px; height: 70px; background: rgba(255,255,255,0.2); border: 2px solid white; border-radius: 50%; pointer-events: auto; display: flex; justify-content: center; align-items: center; user-select: none; -webkit-user-select: none; }
+        .m-btn:active { background: rgba(0, 255, 255, 0.5); }
+        .left-controls { display: flex; gap: 20px; }
+        .right-controls { display: flex; flex-direction: column; gap: 10px; }
+
         /* Game HUD */
-        #game-hud { position: absolute; top: 20px; left: 20px; color: cyan; font-size: 24px; font-weight: bold; pointer-events: none; text-shadow: 2px 2px black; }
-        #winner-screen { z-index: 200; background: rgba(0,0,0,0.85); }
-        #winner-name { font-size: 48px; color: #00ff44; margin-bottom: 20px; }
+        #game-hud { position: absolute; top: 10px; left: 10px; color: cyan; font-size: 18px; pointer-events: none; }
     </style>
 </head>
 <body>
@@ -36,10 +49,17 @@
     <div id="start-screen" class="screen">
         <div class="box">
             <h1>RACING PRO</h1>
+            
+            <!-- Qurilmani tanlash -->
+            <div class="device-select">
+                <button class="device-btn active" id="pc-mode">💻 PC</button>
+                <button class="device-btn" id="mobile-mode">📱 Telefon</button>
+            </div>
+
             <input type="text" id="username" placeholder="Ismingiz...">
             <input type="text" id="room-id" placeholder="Xona nomi...">
             <br>
-            <button id="join-btn">KIRISH / YARATISH</button>
+            <button id="join-btn" style="width: 90%; margin-top: 15px;">KIRISH / YARATISH</button>
             <div id="active-rooms-list" style="margin-top:20px;"></div>
         </div>
     </div>
@@ -50,24 +70,33 @@
             <div id="player-list">
                 <h3>O'yinchilar:</h3>
                 <div id="players-wrapper" style="flex-grow: 1; text-align: left;"></div>
-                
-                <!-- Admin Laps Control -->
                 <div id="admin-controls" class="hidden">
                     Laps: <input type="number" id="laps-count" value="3" min="1" max="10" style="width: 50px;">
                 </div>
-
-                <div style="display: flex; justify-content: center;">
+                <div style="display: flex; flex-direction: column;">
                     <button id="ready-btn">READY</button>
                     <button id="start-game-btn" class="hidden" style="background: #00ff44;">START</button>
                 </div>
             </div>
             <div id="chat-ui">
                 <div id="messages"></div>
-                <div class="chat-controls">
-                    <input type="text" id="chat-input" placeholder="Xabar...">
-                    <button id="send-btn">SEND</button>
+                <div class="chat-controls" style="display: flex;">
+                    <input type="text" id="chat-input" placeholder="Xabar..." style="flex-grow: 1;">
+                    <button id="send-btn">S</button>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- MOBIL BOSHQARUV TUGMALARI -->
+    <div id="mobile-controls" class="hidden">
+        <div class="left-controls">
+            <div class="m-btn" id="btn-left">⬅️</div>
+            <div class="m-btn" id="btn-right">➡️</div>
+        </div>
+        <div class="right-controls">
+            <div class="m-btn" id="btn-up">🚀</div>
+            <div class="m-btn" id="btn-down">🛑</div>
         </div>
     </div>
 
@@ -76,5 +105,27 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script type="module" src="js/main.js"></script>
+
+    <script>
+        // Qurilma tanlash logikasi (UI qismi)
+        const pcBtn = document.getElementById('pc-mode');
+        const mobileBtn = document.getElementById('mobile-mode');
+        let isMobile = false;
+
+        pcBtn.onclick = () => {
+            isMobile = false;
+            pcBtn.classList.add('active');
+            mobileBtn.classList.remove('active');
+        };
+
+        mobileBtn.onclick = () => {
+            isMobile = true;
+            mobileBtn.classList.add('active');
+            pcBtn.classList.remove('active');
+        };
+
+        // Bu o'zgaruvchini main.js o'qiy olishi uchun window'ga biriktiramiz
+        window.isMobileUser = () => isMobile;
+    </script>
 </body>
 </html>

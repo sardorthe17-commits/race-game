@@ -2,7 +2,7 @@ import { Car } from './Car.js';
 import { InputHandler } from './Input.js';
 import { Track } from './Track.js';
 
-const socket = io(); // Render-da avtomatik ulanadi
+const socket = io(); 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const input = new InputHandler();
@@ -24,17 +24,22 @@ const msgDiv = document.getElementById('messages');
 const roomListDiv = document.getElementById('active-rooms-list');
 const chatInput = document.getElementById('chat-input');
 const lapsInput = document.getElementById('laps-count');
+const mobileControls = document.getElementById('mobile-controls');
 
-// --- SERVER BILAN ULANISHNI TEKSHIRISH ---
+// --- EKRAN O'LCHAMINI MOSLASHTIRISH ---
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    if (track) track.resize(canvas); // Agar Track.js da resize bo'lsa
+}
+window.addEventListener('resize', resizeCanvas);
+
+// --- SERVER BILAN ULANISH ---
 socket.on('connect', () => {
     console.log("Serverga ulanish muvaffaqiyatli!");
 });
 
-socket.on('connect_error', (err) => {
-    console.error("Ulanishda xato:", err);
-});
-
-// --- ROOM BROWSER (Xonalar ro'yxati) ---
+// --- ROOM BROWSER ---
 socket.on('roomListUpdate', (roomList) => {
     if (!roomListDiv) return;
     roomListDiv.innerHTML = "";
@@ -50,15 +55,13 @@ socket.on('roomListUpdate', (roomList) => {
         const status = room.isStarted ? "<span style='color:red'>O'yin ketmoqda</span>" : "<span style='color:cyan'>Kutilmoqda</span>";
         
         div.innerHTML = `
-            <span><b>${room.id}</b> (${room.playerCount} o'yinchi)</span> 
-            ${status} 
+            <span><b>${room.id}</b> (${room.playerCount})</span> 
             <button onclick="joinSpecificRoom('${room.id}')" ${room.isStarted ? 'disabled' : ''}>KIRISH</button>
         `;
         roomListDiv.appendChild(div);
     });
 });
 
-// Ro'yxatdan kirish (Global funksiya)
 window.joinSpecificRoom = (roomID) => {
     const u = document.getElementById('username').value.trim();
     if (!u) return alert("Avval ismingizni yozing!");
@@ -68,7 +71,6 @@ window.joinSpecificRoom = (roomID) => {
     lobbyScreen.classList.remove('hidden');
 };
 
-// Yangi xona yaratish
 document.getElementById('join-btn').onclick = () => {
     const u = document.getElementById('username').value.trim();
     const r = document.getElementById('room-id').value.trim();
@@ -91,10 +93,6 @@ document.getElementById('send-btn').onclick = () => {
     }
 };
 
-chatInput.onkeydown = (e) => {
-    if (e.key === 'Enter') document.getElementById('send-btn').onclick();
-};
-
 socket.on('newChatMsg', (d) => { 
     if (msgDiv) {
         msgDiv.innerHTML += `<div><b>${d.name}:</b> ${d.text}</div>`; 
@@ -109,27 +107,20 @@ socket.on('roomUpdate', (data) => {
     
     Object.values(data.players).forEach(p => {
         const pEl = document.createElement('div');
-        pEl.innerHTML = `${p.isAdmin ? '<b style="color:yellow">[ADMIN]</b> ' : ''}${p.name} - ${p.ready ? '✅' : '⏳'}`;
+        pEl.innerHTML = `${p.isAdmin ? '<b style="color:yellow">[A]</b> ' : ''}${p.name} - ${p.ready ? '✅' : '⏳'}`;
         playersWrapper.appendChild(pEl);
 
         if (p.id === socket.id) {
-            // Admin boshqaruvlari
             const adminControls = document.getElementById('admin-controls');
             const startBtn = document.getElementById('start-game-btn');
             if (p.isAdmin) {
                 if (adminControls) adminControls.classList.remove('hidden');
                 if (startBtn) startBtn.classList.remove('hidden');
             }
-            // O'z mashinangizni yaratish (faqat bir marta)
-            if (!myCar) {
-                myCar = new Car(p.id, p.pos.x, p.pos.y, p.color, true);
-            }
+            if (!myCar) myCar = new Car(p.id, p.pos.x, p.pos.y, p.color, true);
             myCar.name = p.name;
         } else {
-            // Boshqa o'yinchilarni yaratish
-            if (!otherCars[p.id]) {
-                otherCars[p.id] = new Car(p.id, p.pos.x, p.pos.y, p.color, false);
-            }
+            if (!otherCars[p.id]) otherCars[p.id] = new Car(p.id, p.pos.x, p.pos.y, p.color, false);
             otherCars[p.id].name = p.name;
         }
     });
@@ -140,11 +131,11 @@ document.getElementById('ready-btn').onclick = () => {
 };
 
 document.getElementById('start-game-btn').onclick = () => {
-    const laps = lapsInput ? lapsInput.value : 3;
+    const laps = parseInt(lapsInput.value) || 3; 
     socket.emit('requestStartGame', { roomID: currentRoom, laps: laps });
 };
 
-// --- O'YINNI BOSHLASH ---
+// --- O'YINNI BOSHLASH (MOBIL MOSLASHUV SHU YERDA) ---
 socket.on('startGame', (data) => {
     lobbyScreen.classList.add('hidden');
     winnerScreen.classList.add('hidden');
@@ -156,12 +147,15 @@ socket.on('startGame', (data) => {
     document.getElementById('total-laps').innerText = totalLapsRequired;
     document.getElementById('current-lap').innerText = "0";
     gameHud.classList.remove('hidden');
-    
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+
+    // MOBIL BOSHQARUVNI KO'RSATISH
+    if (window.isMobileUser && window.isMobileUser()) {
+        mobileControls.classList.remove('hidden');
+    }
+
+    resizeCanvas();
     track = new Track(canvas);
 
-    // Mashinalarni startga reset qilish
     if (myCar && data.players[socket.id]) {
         const me = data.players[socket.id];
         myCar.pos.x = me.pos.x;
@@ -169,36 +163,20 @@ socket.on('startGame', (data) => {
         myCar.angle = 0;
         myCar.speed = 0;
         myCar.laps = 0;
-        myCar.passedCheckpoint = false;
     }
-
-    Object.keys(otherCars).forEach(id => {
-        const other = data.players[id];
-        if (other) {
-            otherCars[id].pos.x = other.pos.x;
-            otherCars[id].pos.y = other.pos.y;
-            otherCars[id].targetPos.x = other.pos.x;
-            otherCars[id].targetPos.y = other.pos.y;
-            otherCars[id].angle = 0;
-        }
-    });
 });
 
 // --- O'YIN TUGASHI ---
 socket.on('gameFinished', (data) => {
     isGameRunning = false;
     gameHud.classList.add('hidden');
+    mobileControls.classList.add('hidden'); // Mobil tugmalarni yashirish
     winnerScreen.classList.remove('hidden');
     document.getElementById('winner-name').innerText = data.winner;
     
     setTimeout(() => {
         winnerScreen.classList.add('hidden');
         lobbyScreen.classList.remove('hidden');
-        // Reset local states
-        if (myCar) {
-            myCar.speed = 0;
-            myCar.laps = 0;
-        }
     }, 5000);
 });
 
@@ -216,18 +194,17 @@ function animate() {
     if (isGameRunning && myCar && track) {
         track.draw(ctx);
         
+        // input.keys endi ham klaviatura, ham mobil tugmalarni o'z ichiga oladi
         const lapChanged = myCar.update(input.keys, canvas, track, otherCars);
+        
         if (lapChanged) {
             document.getElementById('current-lap').innerText = myCar.laps;
             socket.emit('lapCompleted', { roomID: currentRoom, laps: myCar.laps });
         }
         
         myCar.draw(ctx);
-        
-        // Pozitsiyani serverga yuborish
         socket.emit('playerUpdate', { roomID: currentRoom, pos: myCar.pos, angle: myCar.angle });
 
-        // Boshqa o'yinchilarni chizish
         Object.values(otherCars).forEach(car => { 
             car.update(null, canvas, null, null); 
             car.draw(ctx); 

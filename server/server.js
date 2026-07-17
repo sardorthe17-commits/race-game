@@ -7,7 +7,9 @@ require('dotenv').config();
 app.use(express.static(path.join(__dirname, '../public')));
 
 let rooms = {};
-
+app.get('/', (req, res) => {
+    res.sendFile(path.join(publicPath, 'index.html'));
+});
 // Mavjud xonalar ro'yxatini hamma ulanib turganlarga yuborish
 function broadcastRoomList() {
     let roomList = Object.keys(rooms).map(id => ({

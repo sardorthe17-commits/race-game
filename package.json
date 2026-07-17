@@ -1,0 +1,14 @@
+{
+  "name": "race-game",
+  "version": "1.0.0",
+  "description": "2D Multiplayer Racing Game",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2"
+  }
+}

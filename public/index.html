@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pro Racing Multiplayer</title>
+    <style>
+        body { margin: 0; background: #1a1a1a; color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
+        .screen { position: absolute; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; flex-direction: column; background: rgba(0,0,0,0.9); z-index: 100; }
+        .hidden { display: none !important; }
+        .box { background: #222; padding: 30px; border: 2px solid cyan; border-radius: 15px; text-align: center; }
+        #lobby-ui { display: flex; width: 850px; height: 450px; gap: 20px; }
+        #player-list { width: 300px; border-right: 1px solid #444; padding: 10px; display: flex; flex-direction: column; }
+        #chat-ui { flex-grow: 1; padding: 10px; display: flex; flex-direction: column; }
+        #messages { flex-grow: 1; background: #000; overflow-y: auto; padding: 10px; margin-bottom: 10px; border-radius: 5px; text-align: left; }
+        .chat-controls { display: flex; gap: 5px; }
+        #chat-input { flex-grow: 1; padding: 10px; border-radius: 5px; border: none; background: #333; color: white; }
+        #send-btn { padding: 10px 15px; background: cyan; border: none; border-radius: 5px; cursor: pointer; color: black; font-weight: bold; }
+        input[type="text"], input[type="number"] { padding: 10px; margin: 5px; border-radius: 5px; border: none; }
+        button { padding: 10px 20px; background: cyan; border: none; cursor: pointer; font-weight: bold; border-radius: 5px; margin: 5px; }
+        
+        /* Game HUD */
+        #game-hud { position: absolute; top: 20px; left: 20px; color: cyan; font-size: 24px; font-weight: bold; pointer-events: none; text-shadow: 2px 2px black; }
+        #winner-screen { z-index: 200; background: rgba(0,0,0,0.85); }
+        #winner-name { font-size: 48px; color: #00ff44; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+
+    <!-- WINNER SCREEN -->
+    <div id="winner-screen" class="screen hidden">
+        <h1 id="winner-text">G'OLIB:</h1>
+        <div id="winner-name">SARDOR</div>
+        <p>Lobbyga qaytilmoqda...</p>
+    </div>
+
+    <!-- START SCREEN -->
+    <div id="start-screen" class="screen">
+        <div class="box">
+            <h1>RACING PRO</h1>
+            <input type="text" id="username" placeholder="Ismingiz...">
+            <input type="text" id="room-id" placeholder="Xona nomi...">
+            <br>
+            <button id="join-btn">KIRISH / YARATISH</button>
+            <div id="active-rooms-list" style="margin-top:20px;"></div>
+        </div>
+    </div>
+
+    <!-- LOBBY SCREEN -->
+    <div id="lobby-screen" class="screen hidden">
+        <div id="lobby-ui" class="box">
+            <div id="player-list">
+                <h3>O'yinchilar:</h3>
+                <div id="players-wrapper" style="flex-grow: 1; text-align: left;"></div>
+                
+                <!-- Admin Laps Control -->
+                <div id="admin-controls" class="hidden">
+                    Laps: <input type="number" id="laps-count" value="3" min="1" max="10" style="width: 50px;">
+                </div>
+
+                <div style="display: flex; justify-content: center;">
+                    <button id="ready-btn">READY</button>
+                    <button id="start-game-btn" class="hidden" style="background: #00ff44;">START</button>
+                </div>
+            </div>
+            <div id="chat-ui">
+                <div id="messages"></div>
+                <div class="chat-controls">
+                    <input type="text" id="chat-input" placeholder="Xabar...">
+                    <button id="send-btn">SEND</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="game-hud" class="hidden">LAP: <span id="current-lap">0</span> / <span id="total-laps">0</span></div>
+    <canvas id="gameCanvas"></canvas>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
